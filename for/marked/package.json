@@ -1,0 +1,10 @@
+{
+  "name": "0-transform-for-marked",
+  "version": "0.0.0",
+  "private": true,
+  "main": "transform.js",
+  "dependencies": {
+    "highlight.js": "^8.7.0",
+    "marked": "^0.3.5"
+  }
+}
