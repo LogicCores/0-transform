@@ -10,9 +10,9 @@ exports.forLib = function (LIB) {
     var exports = {};
 
     exports.app = function (options) {
-    
+
         return function (req, res, next) {
-    
+
             function uriToPath (uri, requestedFormat) {
                 if (!options.usePageContext) {
                     if (requestedFormat) {
@@ -25,6 +25,26 @@ exports.forLib = function (LIB) {
                 });
             }
             
+            function postprocess (format, data) {
+                if (
+                    !options.postprocess ||
+                    !options.postprocess.htm
+                ) {
+                    return LIB.Promise.resolve(data);
+                }
+                var done = LIB.Promise.resolve();
+                Object.keys(options.postprocess.htm).forEach(function (alias) {
+                    done = done.then(function () {
+                        return options.postprocess.htm[alias](data).then(function (_data) {
+                            data = _data
+                        });
+                    });
+                });
+                return done.then(function () {
+                    return data;
+                });
+            }
+
             var uri = req.params[0];
 
             // TODO: Allow various ways to request format. e.g. via accept request header.
@@ -50,22 +70,28 @@ exports.forLib = function (LIB) {
                                 }
                             }, function (err, html) {
                                 if (err) return next(err);
-        
-                        		res.writeHead(200, {
-                        			"Content-Type": "text/html"
-                        		});
-                        		return res.end(html);
+
+                                return postprocess("htm", html).then(function (html) {
+
+                            		res.writeHead(200, {
+                            			"Content-Type": "text/html"
+                            		});
+                            		return res.end(html);
+                                });
                             });
                         } else {
-        
-                    		res.writeHead(200, {
-                    			"Content-Type": "text/x-markdown; charset=UTF-8"
-                    		});
-                    		return res.end(markdown);
+
+                            return postprocess("md", markdown).then(function (markdown) {
+
+                        		res.writeHead(200, {
+                        			"Content-Type": "text/x-markdown; charset=UTF-8"
+                        		});
+                        		return res.end(markdown);
+                            });
                         }
                     });
                 });
-            });
+            }).catch(next);
         };
     }
 

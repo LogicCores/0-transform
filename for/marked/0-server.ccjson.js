@@ -16,6 +16,7 @@ exports.forLib = function (LIB) {
                     LIB._.merge(config, defaultConfig);
                     LIB._.merge(config, instanceConfig);
                     LIB._.merge(config, aspectConfig);
+                    config = ccjson.attachDetachedFunctions(config);
 
                     return LIB.Promise.resolve({
                         app: function () {
