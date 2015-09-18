@@ -1,6 +1,7 @@
 
 const PATH = require("path");
 const FS = require("fs");
+const URL = require("url");
 const MARKED = require('marked');
 const HIGHLIGHT = require("highlight.js");
 
@@ -25,7 +26,7 @@ exports.forLib = function (LIB) {
                 });
             }
             
-            function postprocess (format, data) {
+            function postprocess (uri, format, data) {
                 if (
                     !options.postprocess ||
                     !options.postprocess.htm
@@ -41,7 +42,31 @@ exports.forLib = function (LIB) {
                     });
                 });
                 return done.then(function () {
-                    return data;
+                    return LIB.Promise.try(function () {
+                        if (options.postprocess.htm) {
+                            return req.context.page.contextForUri(uri).then(function (pageContext) {
+                                // TODO: Relocate to page helper and register as postprocessor so it
+                                //       gets called above.
+                                // Re-base all style and script paths.
+                                var re = /(<script.+?src="|<link.+?href="|<a.+?href=")\//g;
+                                var m = null;
+                                var replace = {};
+                                while ( (m = re.exec(data)) ) {
+                                    replace[m[1]] = m;
+                                }
+                                var baseSubPath = URL.parse(pageContext.page.host.baseUrl).pathname;
+                                if (!/\/$/.test(baseSubPath)) baseSubPath += "/";
+                                Object.keys(replace).forEach(function (key) {
+                                    data = data.replace(
+                                        new RegExp(LIB.RegExp_Escape(replace[key][0]), "g"),
+                                        replace[key][1] + baseSubPath
+                                    );
+                                });
+                            });
+                        }
+                    }).then(function () {
+                        return data;
+                    });
                 });
             }
 
@@ -71,7 +96,7 @@ exports.forLib = function (LIB) {
                             }, function (err, html) {
                                 if (err) return next(err);
 
-                                return postprocess("htm", html).then(function (html) {
+                                return postprocess(uri, "htm", html).then(function (html) {
 
                             		res.writeHead(200, {
                             			"Content-Type": "text/html"
