@@ -34,14 +34,7 @@ exports.forLib = function (LIB) {
                     return LIB.Promise.resolve(data);
                 }
                 var done = LIB.Promise.resolve();
-                Object.keys(options.postprocess.htm).forEach(function (alias) {
-                    done = done.then(function () {
-                        return options.postprocess.htm[alias](data).then(function (_data) {
-                            data = _data
-                        });
-                    });
-                });
-                return done.then(function () {
+                done = done.then(function () {
                     return LIB.Promise.try(function () {
                         if (options.postprocess.htm) {
                             return req.context.page.contextForUri(uri).then(function (pageContext) {
@@ -64,9 +57,26 @@ exports.forLib = function (LIB) {
                                 });
                             });
                         }
-                    }).then(function () {
-                        return data;
                     });
+                });
+                Object.keys(options.postprocess.htm).forEach(function (alias) {
+                    done = done.then(function () {
+
+                        if (
+                            // TODO: Add accept request header to bypass vdom compilation if not requested.
+                            //       We force no-compile for some URIs to maintain working test cases
+                            //       for bare-bones DOM-based component lifting code.
+                            alias === "vdom-compile" && 
+                            uri === "/Tests/Component/MarkdownInheritedFirewidget.md.htm"
+                        ) return;
+
+                        return options.postprocess.htm[alias](data).then(function (_data) {
+                            data = _data
+                        });
+                    });
+                });
+                return done.then(function () {
+                    return data;
                 });
             }
 
@@ -95,6 +105,9 @@ exports.forLib = function (LIB) {
                                 }
                             }, function (err, html) {
                                 if (err) return next(err);
+
+                                // We wrap the html to ensure we have only one top-level element.
+                                html = '<div>' + html + '</div>';
 
                                 return postprocess(uri, "htm", html).then(function (html) {
 
