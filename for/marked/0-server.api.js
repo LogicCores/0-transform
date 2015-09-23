@@ -67,7 +67,7 @@ exports.forLib = function (LIB) {
                             //       We force no-compile for some URIs to maintain working test cases
                             //       for bare-bones DOM-based component lifting code.
                             alias === "vdom-compile" && 
-                            uri === "/Tests/Component/MarkdownInheritedFirewidget.md.htm"
+                            uri === "/Tests/Component/MarkdownInheritedFirewidget-DOM.md.htm"
                         ) return;
 
                         return options.postprocess.htm[alias](data).then(function (_data) {
@@ -108,6 +108,7 @@ exports.forLib = function (LIB) {
 
                                 // We wrap the html to ensure we have only one top-level element.
                                 html = '<div>' + html + '</div>';
+                                //html = '<div data-container="component-parts">' + html + '</div>';
 
                                 return postprocess(uri, "htm", html).then(function (html) {
 
