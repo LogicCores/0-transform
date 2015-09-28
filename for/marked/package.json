@@ -4,7 +4,6 @@
   "private": true,
   "main": "transform.js",
   "dependencies": {
-    "highlight.js": "^8.7.0",
-    "marked": "^0.3.5"
+    "highlight.js": "^8.7.0"
   }
 }

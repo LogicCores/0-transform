@@ -2,7 +2,7 @@
 const PATH = require("path");
 const FS = require("fs");
 const URL = require("url");
-const MARKED = require('marked');
+const MARKED = require('../../../../lib/marked');
 const HIGHLIGHT = require("highlight.js");
 
 
@@ -100,16 +100,39 @@ exports.forLib = function (LIB) {
                         
                         return FS.readFile(path, "utf8", function (err, markdown) {
                             if (err) return next(err);
-                            
+
                             if (requestedFormat === "htm") {
-            
+
+                                // Remove all double newlines between HTML tags
+                                var inMarkup = false;
+                                var lines = [];
+                                markdown.split("\n").forEach(function (line) {
+//console.log(inMarkup, "line >>", line, "<<")
+                                    if (/^</.test(line)) {
+                                        inMarkup = !inMarkup;
+                                        lines.push(line);
+                                    } else
+                                    if (
+                                        inMarkup &&
+                                        /^\s*$/.test(line)
+                                    ) {
+                                        // ignore
+                                    } else {
+                                        lines.push(line);
+                                    }
+                                });
+                                markdown = lines.join("\n");
+
+//console.log("IN >>>", markdown, "<<<");    
+
                                 return MARKED(markdown, {
+                                    rawHtml: true,
                                     highlight: function (code) {
                                         return HIGHLIGHT.highlightAuto(code).value;
                                     }
                                 }, function (err, html) {
                                     if (err) return next(err);
-    
+//console.log("html", html);    
                                     // We wrap the html to ensure we have only one top-level element.
                                     html = '<div>' + html + '</div>';
                                     //html = '<div data-container="component-parts">' + html + '</div>';
