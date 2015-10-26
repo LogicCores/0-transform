@@ -41,11 +41,12 @@ exports.forLib = function (LIB) {
                     done = done.then(function () {
                         return LIB.Promise.try(function () {
                             if (options.postprocess.htm) {
+//console.log("POSTPROCESS", uri);                                
                                 return page.contextForUri(uri).then(function (pageContext) {
                                     // TODO: Relocate to page helper and register as postprocessor so it
                                     //       gets called above.
                                     // Re-base all style and script paths.
-                                    var re = /(<script.+?src="|<link.+?href="|<a.+?href=")\//g;
+                                    var re = /(<script.+?src="|<img.+?src="|<link.+?href="|<a.+?href=")\//g;
                                     var m = null;
                                     var replace = {};
                                     while ( (m = re.exec(data)) ) {
@@ -88,9 +89,11 @@ exports.forLib = function (LIB) {
     
                 // TODO: Allow various ways to request format. e.g. via accept request header.
                 var requestedFormat = (/\.htm$/.test(uri) && 'htm') || null;
-    
+
+//console.log("requestedFormat", requestedFormat);
+
                 return uriToPath(uri, requestedFormat).then(function (path) {
-    
+
                     return FS.exists(path, function (exists) {
                         if (!exists) {
                             var err = new Error("File '" + path + "' not found!");
@@ -125,29 +128,135 @@ exports.forLib = function (LIB) {
 
 //console.log("IN >>>", markdown, "<<<");    
 
-                                return MARKED(markdown, {
-                                    rawHtml: true,
-                                    highlight: function (code) {
-                                        return HIGHLIGHT.highlightAuto(code).value;
+                                function parseCode (language, code, callback) {
+//console.log("PARSE CODE", language, ">>> "+code +" <<<");
+
+                                    // Make a tree out of the nested scripts.
+                                    var scripts = code.split(/(<script\s([^>]+)>|<\/script>)/);
+                                    function makeNode (parent, language) {
+                                        var node = Object.create({
+                                            parent: parent
+                                        });
+                                        return LIB._.assign(node, {
+                                            language: language,
+                                            tag: null,
+                                            code: [],
+                                            children: []
+                                        });
                                     }
-                                }, function (err, html) {
-                                    if (err) return next(err);
-//console.log("html", html);    
-                                    // We wrap the html to ensure we have only one top-level element.
-                                    html = '<div>' + html + '</div>';
-                                    //html = '<div data-container="component-parts">' + html + '</div>';
-    
-                                    return postprocess(uri, "htm", html).then(function (html) {
-    
-                                		res.writeHead(200, {
-                                			"Content-Type": "text/html"
-                                		});
-                                		return res.end(html);
+                                    var node = makeNode(null, language);
+                                    var currentNode = node;
+                                    for (var i=0 ; i<scripts.length ; i++) {
+                                        if (scripts[i].match(/<script\s/)) {
+                                            currentNode.code.push(";;;SEGMENT;;;" + currentNode.children.length + ";;;");
+                                            var language = "javascript";
+                                            var m = scripts[i].match(/\slanguage="([^"]+)"/);
+                                            if (m) {
+                                                language = m[1];
+                                            }
+                                            var subNode = makeNode(currentNode, language);
+                                            subNode.tag = scripts[i];
+                                            currentNode.children.push(subNode);
+                                            currentNode = subNode;
+                                            i += 1;
+                                        } else
+                                        if (scripts[i].match(/<\/script>/)) {
+                                            currentNode = currentNode.parent;
+                                            i += 1;
+                                        } else {
+                                            currentNode.code.push(scripts[i]);
+                                        }
+                                    }
+                                    if (currentNode !== node) {
+                                        return callback(new Error("There is a missing closing script tag!"));
+                                    }
+
+                                    // Parse tree with deepest nodes first.
+                                    function parseNode (node, callback) {
+                                        var waitfor = LIB.waitfor.serial(function (err) {
+                                            if (err) return callback(err);
+
+                                            function finalize (html, callback) {
+                                                if (node.children.length > 0) {
+                                                    node.children.forEach(function (child, i) {
+                                                        var re = new RegExp(";;;SEGMENT;;;" + i + ";;;");
+                                                        html = html.replace(re, child.html);                                                        
+                                                    });
+                                                }
+                                                node.html = html;
+                                                return callback(null, node);
+                                            }
+
+                                            if (node.language === "markdown") {
+                                                return MARKED(node.code.join("\n"), {
+                                                    rawHtml: true,
+                                                    highlight: function (code) {
+                                                        return HIGHLIGHT.highlightAuto(code).value;
+                                                    }
+                                                }, function (err, html) {
+                                                    if (err) return callback(err);
+                                                    return finalize(html, callback);
+                                                });
+                                            } else
+                                            if (node.language === "html") {
+                                                return finalize(node.code.join("\n"), callback);
+                                            } else
+                                            if (node.language === "javascript") {
+                                                node.code.unshift(node.tag);
+                                                node.code.push("</script>");
+                                                return finalize(node.code.join("\n"), callback);
+                                            } else {
+                                                return callback(new Error("Language '" + node.language + "' not supported"));
+                                            }
+                                            return callback(null);
+                                        });
+                                        if (node.children) {
+                                            node.children.forEach(function (child) {
+                                                return waitfor(child, parseNode);
+                                            });
+                                        }
+                                        return waitfor();
+                                    }
+                                    
+                                    return parseNode(node, function (err, node) {
+                                        if (err) return callback(err);
+                                        return callback(null, node.html);
                                     });
-                                });
+
+/*
+                                    var lines = code.split("\n");
+                                    while (/^[\s\t]*$/.test(lines[0])) {
+                                        lines.shift();
+                                    }
+                                    while (/^[\s\t]*$/.test(lines[lines.length-1])) {
+                                        lines.pop();
+                                    }
+*/
+                                }
+                                
+                                try {
+                                    return parseCode("markdown", markdown, function (err, html) {
+                                        if (err) return next(err);
+    
+//console.log("html", html);
+                                        // We wrap the html to ensure we have only one top-level element.
+                                        html = '<div>' + html + '</div>';
+                                        //html = '<div data-container="component-parts">' + html + '</div>';
+        
+                                        return postprocess(uri, "htm", html).then(function (html) {
+        
+                                    		res.writeHead(200, {
+                                    			"Content-Type": "text/html"
+                                    		});
+                                    		return res.end(html);
+                                        });
+                                    });
+                                } catch (err) {
+                                    return next(err);
+                                }
                             } else {
     
-                                return postprocess("md", markdown).then(function (markdown) {
+                                return postprocess(uri, "md", markdown).then(function (markdown) {
     
                             		res.writeHead(200, {
                             			"Content-Type": "text/x-markdown; charset=UTF-8"
