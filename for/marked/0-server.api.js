@@ -107,6 +107,8 @@ exports.forLib = function (LIB) {
                             if (requestedFormat === "htm") {
 
                                 // Remove all double newlines between HTML tags
+/*
+// NOTE: Use `<script language="html">` tags instead.
                                 var inMarkup = false;
                                 var lines = [];
                                 markdown.split("\n").forEach(function (line) {
@@ -116,7 +118,7 @@ exports.forLib = function (LIB) {
                                         lines.push(line);
                                     } else
                                     if (
-                                        inMarkup &&
+                                        !inMarkup &&
                                         /^\s*$/.test(line)
                                     ) {
                                         // ignore
@@ -125,7 +127,7 @@ exports.forLib = function (LIB) {
                                     }
                                 });
                                 markdown = lines.join("\n");
-
+*/
 //console.log("IN >>>", markdown, "<<<");    
 
                                 function parseCode (language, code, callback) {
