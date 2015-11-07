@@ -25,11 +25,17 @@ exports.forLib = function (LIB) {
                         }
                         return LIB.Promise.resolve(PATH.join(options.basePath, uri));
                     }
-                    return page.contextForUri(uri).then(function (pageContext) {
+                    return page.contextForUri(
+                        (
+                            req.state.page &&
+                            req.state.page.lookup &&
+                            req.state.page.lookup.path
+                        ) || uri
+                    ).then(function (pageContext) {
                         return pageContext.page.data.realpath;
                     });
                 }
-                
+
                 function postprocess (uri, format, data) {
                     if (
                         !options.postprocess ||
@@ -94,7 +100,14 @@ exports.forLib = function (LIB) {
 
                 return uriToPath(uri, requestedFormat).then(function (path) {
 
+                    if (!path) {
+                        var err = new Error("File for uri '" + uri + "' not found!");
+                        err.code = 404;
+                        return next(err);
+                    }
+
                     return FS.exists(path, function (exists) {
+
                         if (!exists) {
                             var err = new Error("File '" + path + "' not found!");
                             err.code = 404;
