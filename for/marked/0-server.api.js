@@ -203,6 +203,21 @@ exports.forLib = function (LIB) {
                                             }
 
                                             if (node.language === "markdown") {
+                                                
+                                                node.code = node.code.filter(function (line) {
+                                                    return (line !== "");
+                                                });
+                                                
+                                                if (
+                                                    node.code.length === 1 &&
+                                                    /^;;;SEGMENT;;;/.test(node.code[0])
+                                                ) {
+                                                    // We only have a sub-section so we return it as
+                                                    // HTML directly instead of parsing it with markdown.
+                                                    // This will prevent it from being wrapped in a paragraph tag.
+                                                    return finalize(node.code.join("\n"), callback);
+                                                }
+
                                                 return MARKED(node.code.join("\n"), {
                                                     rawHtml: true,
                                                     highlight: function (code) {
