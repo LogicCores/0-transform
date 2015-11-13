@@ -203,19 +203,17 @@ exports.forLib = function (LIB) {
                                             }
 
                                             if (node.language === "markdown") {
-                                                
-                                                node.code = node.code.filter(function (line) {
-                                                    return (line !== "");
-                                                });
-                                                
                                                 if (
-                                                    node.code.length === 1 &&
-                                                    /^;;;SEGMENT;;;/.test(node.code[0])
+                                                    node.code.length === 3 &&
+                                                    /^;;;SEGMENT;;;/.test(node.code[1]) &&
+                                                    /^[\s]*$/.test(node.code[0]) &&
+                                                    /^[\s]*$/.test(node.code[2])
                                                 ) {
                                                     // We only have a sub-section so we return it as
                                                     // HTML directly instead of parsing it with markdown.
-                                                    // This will prevent it from being wrapped in a paragraph tag.
-                                                    return finalize(node.code.join("\n"), callback);
+                                                    // This will prevent it from being wrapped in a paragraph tag
+                                                    // which may likely mess up the intended HTML tag nesting on the rendered page.
+                                                    return finalize(node.code[1], callback);
                                                 }
 
                                                 return MARKED(node.code.join("\n"), {
