@@ -2,8 +2,6 @@
 exports.forLib = function (LIB) {
     var ccjson = this;
 
-    const SERVER = require("./0-server.api").forLib(LIB);
-
     return LIB.Promise.resolve({
         forConfig: function (defaultConfig) {
 
@@ -11,6 +9,8 @@ exports.forLib = function (LIB) {
                 var self = this;
 
                 self.AspectInstance = function (aspectConfig) {
+
+                    const SERVER = require("./0-server.api").forLib(LIB);
 
                     var config = {};
                     LIB._.merge(config, defaultConfig);

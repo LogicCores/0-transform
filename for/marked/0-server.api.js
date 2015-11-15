@@ -1,11 +1,4 @@
 
-const PATH = require("path");
-const FS = require("fs");
-const URL = require("url");
-const MARKED = require('../../../../lib/marked');
-const HIGHLIGHT = require("highlight.js");
-
-
 exports.forLib = function (LIB) {
     
     var exports = {};
@@ -23,7 +16,7 @@ exports.forLib = function (LIB) {
                         if (requestedFormat) {
                             uri = uri.replace(/\.htm$/, "");
                         }
-                        return LIB.Promise.resolve(PATH.join(options.basePath, uri));
+                        return LIB.Promise.resolve(LIB.path.join(options.basePath, uri));
                     }
                     return page.contextForUri(
                         (
@@ -58,7 +51,7 @@ exports.forLib = function (LIB) {
                                     while ( (m = re.exec(data)) ) {
                                         replace[m[1]] = m;
                                     }
-                                    var baseSubPath = URL.parse(pageContext.page.host.baseUrl).pathname;
+                                    var baseSubPath = LIB.url.parse(pageContext.page.host.baseUrl).pathname;
                                     if (!/\/$/.test(baseSubPath)) baseSubPath += "/";
                                     Object.keys(replace).forEach(function (key) {
                                         data = data.replace(
@@ -106,7 +99,7 @@ exports.forLib = function (LIB) {
                         return next(err);
                     }
 
-                    return FS.exists(path, function (exists) {
+                    return LIB.fs.exists(path, function (exists) {
 
                         if (!exists) {
                             var err = new Error("File '" + path + "' not found!");
@@ -114,7 +107,7 @@ exports.forLib = function (LIB) {
                             return next(err);
                         }
                         
-                        return FS.readFile(path, "utf8", function (err, markdown) {
+                        return LIB.fs.readFile(path, "utf8", function (err, markdown) {
                             if (err) return next(err);
 
                             if (requestedFormat === "htm") {
@@ -145,6 +138,8 @@ exports.forLib = function (LIB) {
 
                                 function parseCode (language, code, callback) {
 //console.log("PARSE CODE", language, ">>> "+code +" <<<");
+
+                                    const MARKED = require('../../../../lib/marked');
 
                                     // Make a tree out of the nested scripts.
                                     var scripts = code.split(/(<script\s([^>]+)>|<\/script>)/);
@@ -219,7 +214,7 @@ exports.forLib = function (LIB) {
                                                 return MARKED(node.code.join("\n"), {
                                                     rawHtml: true,
                                                     highlight: function (code) {
-                                                        return HIGHLIGHT.highlightAuto(code).value;
+                                                        return require("highlight.js").highlightAuto(code).value;
                                                     }
                                                 }, function (err, html) {
                                                     if (err) return callback(err);
