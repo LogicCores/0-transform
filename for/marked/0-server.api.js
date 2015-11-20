@@ -124,12 +124,21 @@ exports.forLib = function (LIB) {
 
                         return LIB.fs.exists(distPath, function (exists) {
                             
+                            function serveDistPath () {
+                                return LIB.send(req, LIB.path.basename(distPath), {
+                            		root: LIB.path.dirname(distPath),
+                            		maxAge: options.clientCacheTTL || 0
+                            	}).on("error", next).pipe(res);
+                            }
+
                             if (
                                 exists &&
                                 options.alwaysRebuild === false
                             ) {
                                 if (LIB.VERBOSE) console.log("Using cached processed markdown for uri '" + uri + "' from distPath '" + distPath + "'");
 
+                                return serveDistPath();
+/*
                                 return LIB.fs.readFileAsync(distPath, "utf8").then(function (data) {
                                     if (requestedFormat === "htm") {
                                 		res.writeHead(200, {
@@ -143,6 +152,7 @@ exports.forLib = function (LIB) {
                                 		return res.end(data);
                                     }
                                 });
+*/
                             }
 
                             function cacheResponse (data) {
@@ -315,10 +325,13 @@ exports.forLib = function (LIB) {
                                                 
                                                 return cacheResponse(html).then(function () {
                                                     
+                                                    return serveDistPath();
+/*                                                    
                                             		res.writeHead(200, {
                                             			"Content-Type": "text/html"
                                             		});
                                             		return res.end(html);
+*/
                                                 });
                                             });
                                         });
@@ -331,10 +344,13 @@ exports.forLib = function (LIB) {
 
                                         return cacheResponse(markdown).then(function () {
 
+                                            return serveDistPath();
+/*
                                     		res.writeHead(200, {
                                     			"Content-Type": "text/x-markdown; charset=UTF-8"
                                     		});
                                     		return res.end(markdown);
+*/
                                         });
                                     });
                                 }
