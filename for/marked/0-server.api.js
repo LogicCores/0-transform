@@ -33,12 +33,13 @@ exports.forLib = function (LIB) {
                             distPath: LIB.path.join(options.distPath, LIB.path.relative(
                                 pageContext.page.data.basePath,
                                 pageContext.page.data.realpath
-                            ))
+                            )),
+                            templateId: pageContext.page.data.path
                         };
                     });
                 }
 
-                function postprocess (uri, format, data) {
+                function postprocess (uri, format, data, processOptions) {
                     if (
                         !options.postprocess ||
                         !options.postprocess.htm
@@ -82,8 +83,8 @@ exports.forLib = function (LIB) {
                                 alias === "vdom-compile" && 
                                 uri === "/Tests/Component/MarkdownInheritedFirewidget-DOM.md.htm"
                             ) return;
-    
-                            return options.postprocess.htm[alias](data).then(function (_data) {
+
+                            return options.postprocess.htm[alias](data, processOptions).then(function (_data) {
                                 data = _data
                             });
                         });
@@ -321,7 +322,9 @@ exports.forLib = function (LIB) {
                                             html = '<div>' + html + '</div>';
                                             //html = '<div data-container="component-parts">' + html + '</div>';
             
-                                            return postprocess(uri, "htm", html).then(function (html) {
+                                            return postprocess(uri, "htm", html, {
+                                                templateId: paths.templateId
+                                            }).then(function (html) {
                                                 
                                                 return cacheResponse(html).then(function () {
                                                     
@@ -340,7 +343,9 @@ exports.forLib = function (LIB) {
                                     }
                                 } else {
         
-                                    return postprocess(uri, "md", markdown).then(function (markdown) {
+                                    return postprocess(uri, "md", markdown, {
+                                        templateId: paths.templateId
+                                    }).then(function (markdown) {
 
                                         return cacheResponse(markdown).then(function () {
 
