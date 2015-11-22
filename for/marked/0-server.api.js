@@ -22,11 +22,11 @@ exports.forLib = function (LIB) {
                         });
                     }
                     return page.contextForUri(
-                        (
+                        ((
                             req.state.page &&
                             req.state.page.lookup &&
                             req.state.page.lookup.path
-                        ) || uri
+                        ) || uri).replace(/\.md\.chscript\.bundle\.js$/, "")
                     ).then(function (pageContext) {
                         return {
                             sourcePath: pageContext.page.data.realpath,
@@ -46,6 +46,12 @@ exports.forLib = function (LIB) {
                     ) {
                         return LIB.Promise.resolve(data);
                     }
+
+                    if (format === "chscript.bundle.js") {
+                        processOptions.format = "commonjs";
+                        processOptions.wrapper = "firewidget.bundle";
+                    }
+
                     var done = LIB.Promise.resolve();
                     done = done.then(function () {
                         return LIB.Promise.try(function () {
@@ -97,7 +103,7 @@ exports.forLib = function (LIB) {
                 var uri = req.params[0];
 
                 // TODO: Allow various ways to request format. e.g. via accept request header.
-                var requestedFormat = (/\.htm$/.test(uri) && 'htm') || null;
+                var requestedFormat = (/\.htm$/.test(uri) && 'htm') || (/\.chscript\.bundle\.js/.test(uri) && 'chscript.bundle.js') || null;
 
 //console.log("requestedFormat", requestedFormat);
 
@@ -166,7 +172,10 @@ exports.forLib = function (LIB) {
                             return LIB.fs.readFile(paths.sourcePath, "utf8", function (err, markdown) {
                                 if (err) return next(err);
     
-                                if (requestedFormat === "htm") {
+                                if (
+                                    requestedFormat === "htm" ||
+                                    requestedFormat === "chscript.bundle.js"
+                                ) {
     
                                     // Remove all double newlines between HTML tags
     /*
@@ -322,7 +331,7 @@ exports.forLib = function (LIB) {
                                             html = '<div>' + html + '</div>';
                                             //html = '<div data-container="component-parts">' + html + '</div>';
             
-                                            return postprocess(uri, "htm", html, {
+                                            return postprocess(uri, requestedFormat, html, {
                                                 templateId: paths.templateId
                                             }).then(function (html) {
                                                 
